@@ -1,0 +1,30 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate skills
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate skill manifests, versions and scripts
+        run: python3 scripts/validate_skills.py
+
+      - name: Smoke-test the img-gen CLI (no API key required)
+        run: |
+          python3 skills/img-gen/scripts/img_gen.py --help > /dev/null
+          python3 skills/img-gen/scripts/check_env.py || true
+          python3 skills/gpt-icon-generate/scripts/plan_icon_sheet_params.py \
+            --width 2048 --height 2048 --rows 4 --cols 4
