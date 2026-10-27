@@ -25,7 +25,8 @@ systemd 部署文档与测试全部移除，只保留两个可直接被 Agent �
 - `skills/gpt-icon-generate`：图标板 → 透明 PNG 图标包技能
   - 尺寸校验、切图参数规划、connected-bbox 切图三个脚本
   - 生图全部委托给 `img-gen`（`../img-gen/scripts/img_gen.py`），不绑定任何具体工具名
-- `.claude-plugin/marketplace.json` + `plugin.json`：支持 `/plugin marketplace add` 一键安装
+- 安装形态对齐 skills CLI：仓库按 `skills/<name>/SKILL.md` 布局，`npx skills add zztdandan/image-generate-skill`
+  即可发现并安装两个技能，无需任何清单文件
 - `scripts/validate_skills.py`：校验 frontmatter / 版本 / 语法 / 泄密 / 价格信息，CI 工作流
   `validate.yml` 调用
 - `VERSION`、`CHANGELOG.md`、`CONTRIBUTING.md`
@@ -48,6 +49,7 @@ systemd 部署文档与测试全部移除，只保留两个可直接被 Agent �
 
 ### Removed
 
+- `.claude-plugin/marketplace.json` 与 `plugin.json`：安装改走 skills CLI 自动发现，不再维护 Claude 插件清单
 - `image_generate_mcp_remote/`（MCP server、preset class registry、临时探索工具、后台落盘）
 - `tests/`、`pyproject.toml`、`uv.lock`、`.python-version`、`.env.example`
 - PyPI 发布工作流与 `SYSTEMD_DEPLOYMENT_GUIDE.md`（不再有服务端可部署）

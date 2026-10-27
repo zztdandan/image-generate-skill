@@ -1,11 +1,19 @@
 # image-generate-skill
 
-> 两个开箱即用的 Agent 技能：**`img-gen`** 负责生图 / 改图，**`gpt-icon-generate`** 负责「图标板 → 校验 → 透明 PNG 图标包」。
+> 一个 [Agent Skills](https://agentskills.io) 仓库，两个开箱即用的技能：**`img-gen`** 负责生图 / 改图（把请求转发到各类中转生图站），
+> **`gpt-icon-generate`** 负责「图标板 → 校验 → 透明 PNG 图标包」。
 > 纯 Python 标准库 + 原生 HTTP 调用，**不需要 MCP 服务、不需要 SDK、不需要 pip install**。
+
+```bash
+npx skills add zztdandan/image-generate-skill    # 装到当前项目
+npx skills add zztdandan/image-generate-skill -g # 或装到用户级
+```
 
 [![release](https://img.shields.io/github/v/release/zztdandan/image-generate-skill?label=release)](https://github.com/zztdandan/image-generate-skill/releases)
 [![license](https://img.shields.io/github/license/zztdandan/image-generate-skill)](./LICENSE)
 [![python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
+[![Agent Skill](https://img.shields.io/badge/agent%20skill-SKILL.md-6f42c1.svg)](./skills/img-gen/SKILL.md)
+[![install](https://img.shields.io/badge/install-npx%20skills%20add-2ea44f.svg)](#安装)
 [![validate](https://github.com/zztdandan/image-generate-skill/actions/workflows/validate.yml/badge.svg)](https://github.com/zztdandan/image-generate-skill/actions/workflows/validate.yml)
 
 [English](#english) · [技能清单](#技能清单) · [安装](#安装) · [快速开始](#快速开始) · [线路模型](#线路模型) · [变更记录](./CHANGELOG.md)
@@ -23,32 +31,53 @@
 
 ## 安装
 
-### 方式一：Claude Code 插件市场（推荐）
+### 方式一：`npx skills`（推荐）
 
-```text
-/plugin marketplace add zztdandan/image-generate-skill
-/plugin install image-generate-skill@image-generate-skill
+仓库按 skills CLI 的约定布局（`skills/<name>/SKILL.md`），无需任何清单文件：
+
+```bash
+# 装到当前项目（会生成 skills-lock.json，团队可复现）
+npx skills add zztdandan/image-generate-skill
+
+# 装到用户级，任何项目可用
+npx skills add zztdandan/image-generate-skill -g
+
+# 装两个技能到所有检测到的宿主，全程无交互
+npx skills add zztdandan/image-generate-skill --skill '*' -a '*' -y
+
+# 只装其中一个
+npx skills add zztdandan/image-generate-skill --skill img-gen
+
+# 先看看仓库里有什么（不安装）
+npx skills add zztdandan/image-generate-skill --list
 ```
 
-### 方式二：克隆后链接到宿主的 skills 目录
+装完可用 `npx skills list` 查看、`npx skills update` 升级、`npx skills remove` 卸载。
+
+> **两个技能建议一起装**：`gpt-icon-generate` 通过 `../img-gen/scripts/img_gen.py` 调用生图，
+> 依赖两者位于同一个 skills 根目录（`npx skills` 装多个技能时天然同级）。
+
+### 方式二：手动放到宿主的 skills 目录
 
 ```bash
 git clone https://github.com/zztdandan/image-generate-skill.git
 cd image-generate-skill
 
-# 以 Claude Code 用户级目录为例
+# 以 Claude Code 用户级目录为例，两个技能必须同级
 mkdir -p ~/.claude/skills
 ln -s "$PWD/skills/img-gen"            ~/.claude/skills/img-gen
 ln -s "$PWD/skills/gpt-icon-generate"  ~/.claude/skills/gpt-icon-generate
 ```
 
-不想用软链就直接 `cp -R skills/img-gen skills/gpt-icon-generate <目标目录>/`。
+不想用软链就 `cp -R skills/img-gen skills/gpt-icon-generate <skills-root>/`。
 
-### 方式三：任意 Agent 宿主
+| 你的 Agent | skills 根目录（示例） |
+|---|---|
+| Claude Code | `<project>/.claude/skills/` 或 `~/.claude/skills/` |
+| GitHub Copilot | `<project>/.github/skills/` |
+| 通用 Agent Skills 宿主 | `~/.agents/skills/` 或该宿主文档指定的目录 |
 
-凡是「按目录发现技能」的宿主都可以用：把两个技能目录放进该宿主的 skills 根目录即可
-（常见约定：`~/.agents/skills/`、项目内 `.agents/skills/`、`.claude/skills/`、`.opencode/skills/`）。
-安装后的形状必须是：
+最终形状必须是：
 
 ```text
 <skills-root>/
@@ -149,11 +178,8 @@ python3 scripts/split_icon_sheet_connected_bbox.py /abs/path/app-sheet.png \
 
 ```text
 image-generate-skill/
-├── .claude-plugin/
-│   ├── marketplace.json          # Claude Code 插件市场清单
-│   └── plugin.json
 ├── .github/workflows/validate.yml
-├── scripts/validate_skills.py    # 发布前校验：frontmatter / 版本 / 语法 / 泄密
+├── scripts/validate_skills.py    # 发布前校验：frontmatter / 版本 / 语法 / 泄密 / 价格信息
 ├── skills/
 │   ├── img-gen/
 │   │   ├── SKILL.md
@@ -169,6 +195,10 @@ image-generate-skill/
 ```
 
 ## 技能规范
+
+仓库布局按 [skills CLI](https://github.com/vercel-labs/skills) 的约定：技能放在
+`skills/<name>/SKILL.md`，根目录**不放** `SKILL.md`（根级 `SKILL.md` 会短路发现流程），
+也不需要任何清单文件——CLI 会自动发现。
 
 每个技能目录必须包含 `SKILL.md`，frontmatter 至少声明：
 
@@ -195,14 +225,17 @@ CI 会在 push / PR 时自动执行同一份校验，并对 `img-gen` CLI 做无
 
 - **`img-gen`**：Python 3.9+，仅标准库（`urllib` / `json` / `base64`），无需 `pip install`。
 - **`gpt-icon-generate`**：同上，外加 ImageMagick（`identify`、`convert`）。
+- **安装用**：`npx skills` 需要 Node.js 18+；技能运行本身不依赖 Node。
 
 ## 版本与变更
 
-当前版本 **v2.3.0**：仓库从「MCP 图片服务」重构为「纯技能集合」，完整变更见 [CHANGELOG.md](./CHANGELOG.md)。
+当前版本 **v2.3.0**：仓库从「MCP 图片服务」重构为「纯技能集合」，安装方式统一为
+`npx skills add`，完整变更见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## English
 
-Two standalone agent skills, no MCP server and no SDK — plain Python stdlib HTTP calls.
+An [Agent Skills](https://agentskills.io) collection with two skills. No MCP server, no SDK,
+no pip install — plain Python stdlib HTTP calls.
 
 - **`img-gen`** — text-to-image and image editing by forwarding requests to OpenAI-Images / Gemini
   compatible relay sites (GPT-Image 2.5, Nano Banana 2). 23 presets, 30 exact pixel slots,
@@ -212,11 +245,12 @@ Two standalone agent skills, no MCP server and no SDK — plain Python stdlib HT
   verifies the real output size, then splits it with connected-component bounding boxes into
   transparent PNGs for icon packs.
 
-**Install (Claude Code plugin):**
+**Install with the skills CLI:**
 
-```text
-/plugin marketplace add zztdandan/image-generate-skill
-/plugin install image-generate-skill@image-generate-skill
+```bash
+npx skills add zztdandan/image-generate-skill        # current project
+npx skills add zztdandan/image-generate-skill -g     # user-level
+npx skills add zztdandan/image-generate-skill --list # browse without installing
 ```
 
 **Or clone and link** both skill directories into your agent's skills root

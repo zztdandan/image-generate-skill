@@ -32,6 +32,7 @@
 ## 提交前自检
 
 ```bash
+npx skills add ./ --list                     # 确认 skills CLI 能发现技能（可选）
 python3 scripts/validate_skills.py          # frontmatter / 版本 / 语法 / 泄密 / 价格信息
 python3 skills/img-gen/scripts/img_gen.py check        # 无 key 时应退出码 1 并提示缺变量
 python3 skills/img-gen/scripts/img_gen.py generate --help
@@ -50,7 +51,7 @@ CI 会跑同一批检查（`validate.yml`）。**不要**为了通过检查把�
 
 ## 发版流程
 
-1. 改 `VERSION` 与两个 `SKILL.md` 的 `version`、`.claude-plugin/*.json` 版本，保持一致。
+1. 改 `VERSION` 与两个 `SKILL.md` 的 `version`，保持一致（无额外清单文件需要同步）。
 2. 在 `CHANGELOG.md` 顶部加一节（Added / Changed / Removed / Migration）。
 3. `python3 scripts/validate_skills.py` 通过后提 PR。
 4. 合并后在 GitHub 上打 tag `vX.Y.Z` 并发 Release，说明直接引用 CHANGELOG 对应小节。

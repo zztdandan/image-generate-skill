@@ -6,7 +6,7 @@ Checks:
      `description`, `version`, and `name` matching its directory;
   2. all Python files parse (compile) cleanly;
   3. all JSON/YAML manifests parse cleanly;
-  4. skill versions and the marketplace manifest agree with `VERSION`;
+  4. skill versions agree with `VERSION`;
   5. no obvious committed secrets (API keys) or internal hostnames leak in;
   6. no pricing / billing information — this collection only describes which relay
      site a request is forwarded to, never what it costs.
@@ -21,12 +21,14 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Iterator
 
 ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = ROOT / "skills"
 VERSION_FILE = ROOT / "VERSION"
-MARKETPLACE_FILE = ROOT / ".claude-plugin" / "marketplace.json"
+# `npx skills` discovers skills under skills/<name>/SKILL.md; a root SKILL.md
+# short-circuits discovery, so the two layouts must never coexist.
+ROOT_SKILL_MD = ROOT / "SKILL.md"
 
 SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.\-]+)?$")
 SECRET = re.compile(r"\bsk-[A-Za-z0-9_\-]{16,}\b")
@@ -78,6 +80,11 @@ def check_skills(errors: list[str]) -> dict[str, str]:
     if not SKILLS_DIR.is_dir():
         errors.append("skills/ directory is missing")
         return versions
+    if ROOT_SKILL_MD.exists():
+        errors.append(
+            "root SKILL.md must not coexist with skills/: it short-circuits "
+            "`npx skills` discovery for the whole repository"
+        )
 
     for skill_dir in sorted(p for p in SKILLS_DIR.iterdir() if p.is_dir()):
         skill_md = skill_dir / "SKILL.md"
@@ -138,18 +145,8 @@ def check_versions(errors: list[str], skill_versions: dict[str, str]) -> None:
                 f"{name}: skill version '{version}' != repo VERSION '{repo_version}'"
             )
 
-    if not MARKETPLACE_FILE.is_file():
-        errors.append(".claude-plugin/marketplace.json is missing")
-        return
-    try:
-        manifest: dict[str, Any] = json.loads(MARKETPLACE_FILE.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return  # already reported by check_json
-    declared = manifest.get("metadata", {}).get("version") or manifest.get("version")
-    if declared != repo_version:
-        errors.append(
-            f"marketplace.json version '{declared}' != repo VERSION '{repo_version}'"
-        )
+    if not skill_versions:
+        errors.append("no skill discovered under skills/<name>/SKILL.md")
 
 
 def check_secrets(errors: list[str]) -> None:

@@ -45,8 +45,10 @@ metadata:
 
 > 下文命令中的 `$IMG_GEN` 指 `../img-gen/scripts/img_gen.py`，写成绝对路径更稳妥。
 >
-> 若宿主只安装了本技能、找不到 `img-gen`，**停下并让用户先安装 img-gen 技能**；
-> 不要自己另写一套 HTTP 请求，也不要用别的图片工具顶替。
+> 两个技能必须装在同一个 skills 根目录（`npx skills add zztdandan/image-generate-skill`
+> 默认就会同级安装）。若宿主只装了本技能、找不到 `img-gen`，**停下并让用户先安装
+> img-gen**（`npx skills add zztdandan/image-generate-skill --skill img-gen`，或把两个目录
+> 放到同一 skills 根目录）；不要自己另写一套 HTTP 请求，也不要用别的图片工具顶替。
 
 ```bash
 IMG_GEN=/absolute/path/to/skills/img-gen/scripts/img_gen.py
