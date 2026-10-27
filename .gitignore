@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Generated artifacts
+*.png
+*.webp
+*.jpeg
+*.jpg
+!docs/**/*.png
+*-icons/
+*-sheet.png
+
+# Local secrets / env
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Code-graph / local tooling caches
+.codegraph/

@@ -1,0 +1,34 @@
+{
+  "name": "image-generate-skill",
+  "owner": {
+    "name": "zztdandan",
+    "url": "https://github.com/zztdandan"
+  },
+  "metadata": {
+    "description": "Two standalone agent skills for image generation: img-gen (direct HTTP image generation/editing) and gpt-icon-generate (icon sheet to transparent PNG pipeline).",
+    "version": "2.3.0"
+  },
+  "plugins": [
+    {
+      "name": "image-generate-skill",
+      "source": "./",
+      "description": "Generate and edit images (GPT-Image 2.5 / Nano Banana 2) and turn icon sheets into transparent PNG icon packs — stdlib Python only, no MCP server.",
+      "version": "2.3.0",
+      "author": {
+        "name": "zztdandan",
+        "url": "https://github.com/zztdandan"
+      },
+      "homepage": "https://github.com/zztdandan/image-generate-skill",
+      "repository": "https://github.com/zztdandan/image-generate-skill",
+      "license": "MIT",
+      "keywords": [
+        "agent-skills",
+        "image-generation",
+        "gpt-image",
+        "nano-banana",
+        "icons",
+        "transparent-png"
+      ]
+    }
+  ]
+}
