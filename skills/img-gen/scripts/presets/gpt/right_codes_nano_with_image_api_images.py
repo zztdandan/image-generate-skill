@@ -2,13 +2,13 @@
 """right_codes_nano_with_image_api_images — wrapper for img-gen preset right_codes_nano_with_image_api_images.
 
 Model : nano-banana-2
-Route : right_codes (openai_images)
-Billing: varies  |  tier: standard
-Note  : stable
+Route : right_codes (openai_images)  route=proxy  tier=standard
 
 Usage:
   python3 right_codes_nano_with_image_api_images.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 right_codes_nano_with_image_api_images.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset right_codes_nano_with_image_api_images pre-filled.
 """
 import os
 import sys

@@ -2,13 +2,14 @@
 """laozhang_gpt_image_2_enterprise — wrapper for img-gen preset laozhang_gpt_image_2_enterprise.
 
 Model : gpt-image-2
-Route : laozhang (openai_images)
-Billing: EXPENSIVE (token-billed relay)  |  tier: last_resort
-Note  : stable
+Route : laozhang (openai_images)  route=official_relay  tier=fallback
+Note  : 企业通道官转 gpt-image-2；回退线路
 
 Usage:
   python3 laozhang_gpt_image_2_enterprise.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 laozhang_gpt_image_2_enterprise.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset laozhang_gpt_image_2_enterprise pre-filled.
 """
 import os
 import sys

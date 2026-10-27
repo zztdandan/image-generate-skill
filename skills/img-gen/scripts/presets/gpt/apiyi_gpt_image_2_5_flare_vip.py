@@ -2,13 +2,14 @@
 """apiyi_gpt_image_2_5_flare_vip — wrapper for img-gen preset apiyi_gpt_image_2_5_flare_vip.
 
 Model : gpt-image-2.5-flare-vip
-Route : apiyi (openai_images)
-Billing: $0.03/image flat  |  tier: preferred
-Note  : 速度优先的 $0.03 路线；画面偏软，适合草稿/批量试稿
+Route : apiyi (openai_images)  route=proxy  tier=default
+Note  : 速度优先的默认线路；画面偏软，适合草稿与批量试稿
 
 Usage:
   python3 apiyi_gpt_image_2_5_flare_vip.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 apiyi_gpt_image_2_5_flare_vip.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset apiyi_gpt_image_2_5_flare_vip pre-filled.
 """
 import os
 import sys

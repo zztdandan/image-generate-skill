@@ -2,13 +2,13 @@
 """google_nano_banana — wrapper for img-gen preset google_nano_banana.
 
 Model : gemini-3.1-flash-image-preview
-Route : google (gemini_generate_content)
-Billing: varies  |  tier: standard
-Note  : stable
+Route : google (gemini_generate_content)  route=official  tier=standard
 
 Usage:
   python3 google_nano_banana.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 google_nano_banana.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset google_nano_banana pre-filled.
 """
 import os
 import sys

@@ -8,7 +8,7 @@
 [![python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
 [![validate](https://github.com/zztdandan/image-generate-skill/actions/workflows/validate.yml/badge.svg)](https://github.com/zztdandan/image-generate-skill/actions/workflows/validate.yml)
 
-[English](#english) · [技能清单](#技能清单) · [安装](#安装) · [快速开始](#快速开始) · [成本模型](#成本模型) · [变更记录](./CHANGELOG.md)
+[English](#english) · [技能清单](#技能清单) · [安装](#安装) · [快速开始](#快速开始) · [线路模型](#线路模型) · [变更记录](./CHANGELOG.md)
 
 ---
 
@@ -16,7 +16,7 @@
 
 | 技能 | 干什么 | 依赖 |
 |------|--------|------|
-| [`img-gen`](./skills/img-gen/SKILL.md) | 文生图 / 图生图。GPT-Image 2.5（默认 `$0.03/张` 的 `-vip` 平摊路线）与 Nano Banana 2，共 23 个 preset、30 档精确尺寸、`--preset auto` 自动同价回退 | `python3`（仅标准库） |
+| [`img-gen`](./skills/img-gen/SKILL.md) | 文生图 / 图生图。把请求转发到各类中转生图站（GPT-Image 2.5、Nano Banana 2 等 OpenAI-Images / Gemini 兼容网关），共 23 个 preset、30 档精确尺寸、`--preset auto` 按默认链路自动回退 | `python3`（仅标准库） |
 | [`gpt-icon-generate`](./skills/gpt-icon-generate/SKILL.md) | 规则网格图标板生成 → 尺寸校验 → 参数规划 → connected-bbox 切图 → 透明 PNG 图标包 / UI 图标库 | `python3` + ImageMagick（`identify` / `convert`）+ `img-gen` |
 
 两个技能是**兄弟目录**：`gpt-icon-generate` 通过 `../img-gen/scripts/img_gen.py` 调用生图能力，所以安装时一起装。
@@ -85,10 +85,10 @@ export IMAGE_OUTPUT_DIR=$HOME/images                      # 可选，默认 ~/im
 ```bash
 cd <skills-root>/img-gen
 
-# 环境自检：打印 key 状态、auto 链路、各 preset 单价（不打印 token）
+# 环境自检：打印 key 状态、auto 链路、各 preset 的 route/tier（不打印 token）
 python3 scripts/img_gen.py check
 
-# 文生图（默认 --preset auto，只走 $0.03/张 的同价链路）
+# 文生图（默认 --preset auto，只走 tier=default 的默认链路）
 python3 scripts/img_gen.py generate \
   --prompt "A futuristic steel plant at dusk" \
   --save out.png --size 2K --ratio 16:9
@@ -128,16 +128,21 @@ python3 scripts/split_icon_sheet_connected_bbox.py /abs/path/app-sheet.png \
 
 完整提示词模板、切图算法、调参见 [`skills/gpt-icon-generate/SKILL.md`](./skills/gpt-icon-generate/SKILL.md)。
 
-## 成本模型
+## 线路模型
 
-`img-gen` 把「线路」明确分成两档，`--preset auto` 默认只用便宜那一档：
+`img-gen` 是**中转站转发器**：它不关心也不描述各站怎么算账，只编码「请求打到哪个站、
+按什么顺序回退」。计费与额度请以你自己的网关账号为准。
 
-| 档位 | 模型 | 计费 | 用法 |
-|------|------|------|------|
-| `preferred` | `gpt-image-2.5-vip`（sunburst-vip / flare-vip）、`gpt-image-2-vip` | **$0.03/张，按次**；1K/2K/4K 与 quality 都不加价 | 日常唯一默认，`--preset auto` 在这几条之间自动回退 |
-| `last_resort` | `gpt-image-2.5-flare` / `-sunburst`、`gpt-image-2` | 官转按输出 token 计费，明显更贵 | 只有全部便宜线路失败 + `--allow-expensive`，或显式点名 preset |
+| 维度 | 取值 | 含义 |
+|------|------|------|
+| `route` | `proxy` | 中转站 / 聚合站（多数 preset） |
+| | `official_relay` | 官转通道（请求被转给官方 API） |
+| | `official` | 官方 API 直连 |
+| `tier` | `default` | 日常默认链路，`--preset auto` 按顺序走 |
+| | `standard` | 备用 / 实验线路，需显式点名 |
+| | `fallback` | 官方 / 官转线路，需 `--allow-fallback` 或显式点名 |
 
-auto 链顺序：`apiyi_gpt_image_2_5_vip → apiyi_..._flare_vip → laozhang_..._sunburst_vip → laozhang_..._flare_vip`。
+默认链路顺序：`apiyi_gpt_image_2_5_vip → apiyi_..._flare_vip → laozhang_..._sunburst_vip → laozhang_..._flare_vip`。
 只有 401/403/404/408/409/425/429/5xx 与网络超时才跳下一条；HTTP 400（参数错误）立即停止，因为换线路也会一样失败。
 
 ## 目录结构
@@ -199,8 +204,10 @@ CI 会在 push / PR 时自动执行同一份校验，并对 `img-gen` CLI 做无
 
 Two standalone agent skills, no MCP server and no SDK — plain Python stdlib HTTP calls.
 
-- **`img-gen`** — text-to-image and image editing via GPT-Image 2.5 (default `$0.03/image` flat VIP routes,
-  auto-fallback between equally-priced routes) and Nano Banana 2. 23 presets, 30 exact pixel slots.
+- **`img-gen`** — text-to-image and image editing by forwarding requests to OpenAI-Images / Gemini
+  compatible relay sites (GPT-Image 2.5, Nano Banana 2). 23 presets, 30 exact pixel slots,
+  ordered default chain with automatic fallback. It does not describe or assume any billing —
+  that belongs to whichever gateway your key points at.
 - **`gpt-icon-generate`** — builds a regular-grid icon sheet (default 2K, 1:1, 4x4, white page),
   verifies the real output size, then splits it with connected-component bounding boxes into
   transparent PNGs for icon packs.

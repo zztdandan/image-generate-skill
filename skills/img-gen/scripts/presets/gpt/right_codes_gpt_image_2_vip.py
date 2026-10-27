@@ -2,13 +2,13 @@
 """right_codes_gpt_image_2_vip — wrapper for img-gen preset right_codes_gpt_image_2_vip.
 
 Model : gpt-image-2-vip
-Route : right_codes (openai_images)
-Billing: $0.03/image flat  |  tier: standard
-Note  : experimental
+Route : right_codes (openai_images)  route=proxy  tier=standard
 
 Usage:
   python3 right_codes_gpt_image_2_vip.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 right_codes_gpt_image_2_vip.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset right_codes_gpt_image_2_vip pre-filled.
 """
 import os
 import sys

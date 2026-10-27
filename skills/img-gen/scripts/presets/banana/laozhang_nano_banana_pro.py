@@ -2,13 +2,13 @@
 """laozhang_nano_banana_pro — wrapper for img-gen preset laozhang_nano_banana_pro.
 
 Model : gemini-3-pro-image-preview
-Route : laozhang (gemini_generate_content)
-Billing: varies  |  tier: standard
-Note  : stable
+Route : laozhang (gemini_generate_content)  route=proxy  tier=standard
 
 Usage:
   python3 laozhang_nano_banana_pro.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 laozhang_nano_banana_pro.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset laozhang_nano_banana_pro pre-filled.
 """
 import os
 import sys

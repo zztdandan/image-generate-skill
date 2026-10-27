@@ -7,7 +7,9 @@ Checks:
   2. all Python files parse (compile) cleanly;
   3. all JSON/YAML manifests parse cleanly;
   4. skill versions and the marketplace manifest agree with `VERSION`;
-  5. no obvious committed secrets (API keys) or internal hostnames leak in.
+  5. no obvious committed secrets (API keys) or internal hostnames leak in;
+  6. no pricing / billing information — this collection only describes which relay
+     site a request is forwarded to, never what it costs.
 
 Usage:
     python3 scripts/validate_skills.py
@@ -29,6 +31,14 @@ MARKETPLACE_FILE = ROOT / ".claude-plugin" / "marketplace.json"
 SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.\-]+)?$")
 SECRET = re.compile(r"\bsk-[A-Za-z0-9_\-]{16,}\b")
 INTERNAL_HOST = re.compile(r"\b(?:172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})\b")
+# Concrete price/billing statements: "$0.03", "0.03/image", "USD", "per token",
+# "unit_price", "billing=", "元/张", "计费" in code. A bare disclaimer that the skill
+# says nothing about billing is fine, so only these concrete shapes are rejected.
+PRICE = re.compile(
+    r"(\$\s*\d|\bUSD\b|\d+(?:\.\d+)?\s*(?:/\s*(?:image|img|\u5f20|pic)\b|\u5143/\u5f20)"
+    r"|per[_ ]token|unit_price|cost_hint|billing\s*=|\bBilling\s*:)",
+    re.IGNORECASE,
+)
 
 REQUIRED_FIELDS = ("name", "description", "version", "license")
 
@@ -156,6 +166,21 @@ def check_secrets(errors: list[str]) -> None:
             errors.append(f"{path.relative_to(ROOT)}: looks like a committed API key (sk-...)")
 
 
+def check_pricing(errors: list[str]) -> None:
+    for suffix in (".md", ".py", ".json"):
+        for path in iter_files(suffix):
+            if path == Path(__file__).resolve():
+                continue
+            rel = path.relative_to(ROOT)
+            for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                match = PRICE.search(line)
+                if match:
+                    errors.append(
+                        f"{rel}:{lineno}: pricing/billing info is not allowed "
+                        f"({match.group(0)!r})"
+                    )
+
+
 def main() -> int:
     errors: list[str] = []
     skill_versions = check_skills(errors)
@@ -163,6 +188,7 @@ def main() -> int:
     check_json(errors)
     check_versions(errors, skill_versions)
     check_secrets(errors)
+    check_pricing(errors)
 
     if errors:
         print("skill collection validation FAILED:")

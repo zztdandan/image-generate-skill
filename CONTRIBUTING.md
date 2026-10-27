@@ -9,7 +9,9 @@
 2. **不落盘密钥**：只读进程环境变量；不解析 `.env`，不写 token 到文件，不在日志里打印 token。
 3. **技能自包含**：脚本、参考文档都放在 `skills/<skill>/` 内，路径相对技能目录；
    跨技能调用写清「找不到就停下让用户补装」，不要静默降级。
-4. **克制默认行为**：默认路线必须是最便宜的那条，贵线路只能显式点名或显式开关。
+4. **克制默认行为**：`tier=default` 链路是日常唯一默认，`tier=fallback` 只能显式点名或显式开关。
+5. **不写价格**：仓库里不出现单价、计费方式、成本比较。技能只描述「转发到哪个中转站、
+   按什么顺序回退」，计费由用户自己的网关账号决定。
 
 ## 技能约定
 
@@ -30,7 +32,7 @@
 ## 提交前自检
 
 ```bash
-python3 scripts/validate_skills.py          # frontmatter / 版本 / 语法 / 泄密
+python3 scripts/validate_skills.py          # frontmatter / 版本 / 语法 / 泄密 / 价格信息
 python3 skills/img-gen/scripts/img_gen.py check        # 无 key 时应退出码 1 并提示缺变量
 python3 skills/img-gen/scripts/img_gen.py generate --help
 python3 skills/gpt-icon-generate/scripts/plan_icon_sheet_params.py --width 2048 --height 2048 --rows 4 --cols 4
@@ -43,8 +45,8 @@ CI 会跑同一批检查（`validate.yml`）。**不要**为了通过检查把�
 1. 在 `skills/img-gen/scripts/lib/presets.py` 注册：`provider`、`models`、`base_url`、`tier`、
    `size_policy`、`qualities`、字段派发策略。
 2. 在 `skills/img-gen/scripts/presets/{gpt,banana}/` 加同名薄封装脚本。
-3. 更新 `skills/img-gen/references/presets.md`：单价、tier、实测状态。
-4. 若是计费/协议层面的新事实（尺寸表、quality 档位），同步更新 `references/`。
+3. 更新 `skills/img-gen/references/presets.md`：`route`、`tier`、实测状态。
+4. 若是协议层面的新事实（尺寸表、quality 档位、鉴权头），同步更新 `references/`。
 
 ## 发版流程
 

@@ -10,10 +10,11 @@ Usage:
       --prompt "..." --save out.png --size 2K --ratio 16:9 --quality low
   python3 scripts/img_gen.py edit --image in.png --prompt "..." --save out.png
 
-`--preset auto` (the default) walks the $0.03/image flat chain and only falls
-through on transport/quota/saturation errors. The expensive token-billed
-official relay presets are reachable with `--allow-expensive` or by naming one
-explicitly.
+`--preset auto` (the default) walks the default relay chain and only falls
+through on transport/quota/saturation errors. The official / official-relay
+presets (tier="fallback") are reachable with `--allow-fallback` or by naming
+one explicitly. The skill forwards requests to whichever relay site the key
+points at; it makes no statement about what that site charges.
 """
 
 from __future__ import annotations
@@ -57,7 +58,7 @@ def _should_fall_through(exc: Exception) -> bool:
 
 def _add_common(p, *, is_edit: bool) -> None:
     p.add_argument("--preset", default="auto",
-                   help="Preset ID, or 'auto' (default) to walk the $0.03/image chain.")
+                   help="Preset ID, or 'auto' (default) to walk the default relay chain.")
     p.add_argument("--prompt", required=True, help="Text prompt")
     p.add_argument("--save", required=True, help="Output file path")
     p.add_argument("--quality", default=None,
@@ -66,7 +67,7 @@ def _add_common(p, *, is_edit: bool) -> None:
                         "2.5 models accept xhigh/max. Not sent when omitted.")
     p.add_argument("--timeout", type=float, default=gpt_api.DEFAULT_TIMEOUT,
                    help="HTTP timeout seconds (default 360). Image APIs are synchronous: "
-                        "a disconnect still bills, so do not lower this casually.")
+                        "a disconnect drops the result, so do not lower this casually.")
     p.add_argument("--response-format", default="b64_json", choices=["b64_json", "url"],
                    help="Always sent explicitly. 'url' links expire in ~24h; the CLI downloads "
                         "them immediately, so the saved file is still durable.")
@@ -74,9 +75,10 @@ def _add_common(p, *, is_edit: bool) -> None:
                    help="'transparent' + --output-format png gives a real alpha PNG on 2.5 models.")
     p.add_argument("--output-format", default=None, choices=["png", "webp", "jpeg"],
                    help="Requested container format. Use png together with --background transparent.")
-    p.add_argument("--allow-expensive", action="store_true",
-                   help="Only with --preset auto: append the token-billed official-relay presets "
-                        "after every cheap route has failed. Off by default on purpose.")
+    p.add_argument("--allow-fallback", action="store_true",
+                   help="Only with --preset auto: append the official / official-relay presets "
+                        "(tier=fallback) after every default route has failed. "
+                        "Off by default on purpose.")
 
     if not is_edit:
         p.add_argument("--size", default="2K", choices=presets.VALID_SIZES)
@@ -128,35 +130,35 @@ def _require_preset(preset_id: str) -> presets.Preset:
 
 def _describe_route(pid: str) -> str:
     p = presets.PRESETS[pid]
-    price = p.cost_hint or presets.TIER_LABELS.get(p.tier, "varies")
+    label = presets.TIER_LABELS.get(p.tier, p.tier)
     quality = "" if p.protocol != "openai_images" else f" quality≤{p.qualities[-1]}"
-    return (f"{pid}  [{p.default_model}]  {price}"
-            f"  tier={p.tier}{quality}  {p.base_url}")
+    return (f"{pid}  [{p.default_model}]  {label}"
+            f"  route={p.route}{quality}  {p.base_url}")
 
 
-def _warn_if_expensive(pid: str) -> None:
+def _warn_fallback(pid: str) -> None:
     p = presets.PRESETS[pid]
-    if p.tier == "last_resort":
-        print("  [!] LAST-RESORT ROUTE: this preset is token-billed (expensive). "
-              "Use it only after every $0.03/image route failed.")
+    if p.tier == "fallback":
+        print("  [!] FALLBACK ROUTE: official / official-relay preset "
+              f"(route={p.route}). Use it only after every default route failed.")
 
 
 def _run_chain(args, protocol: str, run_once):
     """Run `run_once(preset)` over auto chain or a single preset."""
     if args.preset != "auto":
         p = _require_preset(args.preset)
-        _warn_if_expensive(p.preset_id)
+        _warn_fallback(p.preset_id)
         return run_once(p), p.preset_id
 
-    chain = presets.build_auto_chain(allow_expensive=args.allow_expensive, protocol=protocol)
+    chain = presets.build_auto_chain(allow_fallback=args.allow_fallback, protocol=protocol)
     if not chain:
         raise SystemExit("No configured preset available for --preset auto.")
 
-    print(f"[auto] cheap chain ({len(chain)}): {', '.join(chain)}")
+    print(f"[auto] default chain ({len(chain)}): {', '.join(chain)}")
     failures: list[str] = []
     for pid in chain:
         try:
-            _warn_if_expensive(pid)
+            _warn_fallback(pid)
             return run_once(presets.PRESETS[pid]), pid
         except SystemExit:
             raise
@@ -167,9 +169,9 @@ def _run_chain(args, protocol: str, run_once):
             print(f"  [warn] {pid} failed: {msg}")
             failures.append(f"{pid}: {msg}")
 
-    hint = "" if args.allow_expensive else (
-        "\nAll cheap $0.03/image routes failed. Re-run with --allow-expensive to try the "
-        "token-billed official relay (materially more expensive).")
+    hint = "" if args.allow_fallback else (
+        "\nEvery default route failed. Re-run with --allow-fallback to try the "
+        "official / official-relay routes.")
     raise SystemExit("Every auto-chain preset failed:\n  " + "\n  ".join(failures) + hint)
 
 
@@ -218,16 +220,16 @@ def cmd_check():
           f"BASE={banana.get('base_url') or '—' if banana else '—'}")
 
     available = presets.list_available_presets()
-    cheap = presets.build_auto_chain()
-    last = [pid for pid in presets.build_auto_chain(allow_expensive=True) if pid not in cheap]
-    print(f"\n  Auto cheap chain: {', '.join(cheap) or '—'}")
-    print(f"  Auto last resort: {', '.join(last) or '—'}")
+    primary = presets.build_auto_chain()
+    fallback = [pid for pid in presets.build_auto_chain(allow_fallback=True) if pid not in primary]
+    print(f"\n  Auto default chain: {', '.join(primary) or '—'}")
+    print(f"  Auto fallback chain: {', '.join(fallback) or '—'}")
 
     print(f"\n  Configured presets ({len(available)}):")
     for pid in available:
         p = presets.PRESETS[pid]
-        price = p.cost_hint or presets.TIER_LABELS.get(p.tier, "varies")
-        print(f"    {pid:42s} {p.tier:11s} {price:34s} {p.base_url}")
+        label = presets.TIER_LABELS.get(p.tier, p.tier)
+        print(f"    {pid:42s} {p.tier:9s} {label:36s} {p.base_url}")
 
     if not available:
         print("  ERROR: no preset has an API key in the environment.")
@@ -340,7 +342,7 @@ def main():
         print(f"[error] {e}", file=sys.stderr)
         if args.preset != "auto":
             print("[hint] this preset failed; re-run with --preset auto to fall back "
-                  "to the other $0.03/image routes.", file=sys.stderr)
+                  "to the other default routes.", file=sys.stderr)
         return 1
     return 0
 

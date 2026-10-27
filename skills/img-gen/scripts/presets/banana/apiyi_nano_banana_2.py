@@ -2,13 +2,13 @@
 """apiyi_nano_banana_2 — wrapper for img-gen preset apiyi_nano_banana_2.
 
 Model : gemini-3.1-flash-image-preview
-Route : apiyi (gemini_generate_content)
-Billing: varies  |  tier: standard
-Note  : stable
+Route : apiyi (gemini_generate_content)  route=proxy  tier=standard
 
 Usage:
   python3 apiyi_nano_banana_2.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 apiyi_nano_banana_2.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset apiyi_nano_banana_2 pre-filled.
 """
 import os
 import sys

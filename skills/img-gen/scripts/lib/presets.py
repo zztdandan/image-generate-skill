@@ -16,24 +16,28 @@ Key families:
   Provider-level key (used by every preset of that provider):
     APIYI_API_KEY, IMG_GEN_APIYI_API_KEY, IMG_GEN_LAOZHANG_API_KEY, ...
 
-## Billing model (2026-10 apiyi docs)
+## Route model
 
-`-vip` models (`gpt-image-2.5-vip` / `-flare-vip` / `-sunburst-vip` /
-`gpt-image-2-vip`) are **pay-per-call: $0.03 per image, flat** — size tier
-(1K/2K/4K) and `quality` do not change the price. The bare models
-(`gpt-image-2.5-flare`, `gpt-image-2.5-sunburst`, `gpt-image-2`) are
-official relays billed by output tokens, i.e. materially more expensive.
+This skill only knows how to *forward a request to a relay site*; it makes no
+statement about what any provider charges. What it does encode is **which route
+a request takes and in which order routes are tried**:
 
-Therefore: daily work uses `tier="preferred"` ($0.03 flat) presets; the
-token-billed relay presets are `tier="last_resort"` and are only reached
-when explicitly asked for (`--allow-expensive`) or after every cheap route
-has failed.
+  route="proxy"           a relay/aggregator site in front of the model (中转站)
+  route="official_relay"  a relay that forwards to the official API (官转)
+  route="official"        the official API directly
+
+  tier="default"   daily route, walked in order by `--preset auto`
+  tier="standard"  extra / experimental routes, only used when named explicitly
+  tier="fallback"  official / official-relay routes, reached with --allow-fallback
+
+Billing and quotas belong to whichever gateway your key points at: check with
+that provider, not with this skill.
 """
 
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 # ── Environment configuration ───────────────────────────────────────
@@ -87,210 +91,189 @@ class Preset:
     modes: tuple[str, ...] = ("generate", "edit")
     stability: str = "stable"
     env_key_family: str = "gpt"  # "gpt" | "banana"
-    # "per_image" ($ flat per generated image) | "per_token" (relay usage billing)
-    billing: str = "per_token"
-    unit_price_usd: float | None = None
-    # "preferred" ($0.03 flat daily driver) | "standard" | "last_resort" (expensive)
+    # How the request reaches the model. Deliberately no billing semantics:
+    #   "proxy"          relay / aggregator site in front of the model
+    #   "official_relay" relay that forwards to the official API
+    #   "official"       official API directly
+    route: str = "proxy"
+    # "default"  daily route, walked by `--preset auto`
+    # "standard" extra / experimental route, only when named explicitly
+    # "fallback" official / official-relay route, only with --allow-fallback
     tier: str = "standard"
     qualities: tuple[str, ...] = QUALITIES_GPT2
     # "table30": `size` must be one of the 30 documented slots (or "auto").
     # "legacy": gateway accepts model-specific sizes.
     size_policy: str = "legacy"
     note: str = ""
-    cost_hint: str = field(default="", compare=False)
 
 
 # ── All registered presets ──────────────────────────────────────────
 
 PRESETS: dict[str, Preset] = {
-    # ── GPT-Image 2.5 VIP via apiyi — $0.03/image flat ──────────────
-    # Adobe-relay (Firefly) route. 30 fixed size slots, 6 quality levels,
-    # 90–150 s per image, background="transparent" returns real alpha.
+    # ── GPT-Image 2.5 VIP via apiyi ────────────────────────────────
+    # 30 fixed size slots, 6 quality levels, 90–150 s per image,
+    # background="transparent" returns real alpha.
     "apiyi_gpt_image_2_5_vip": Preset(
         "apiyi_gpt_image_2_5_vip", "apiyi", "openai_images",
         "https://api.apiyi.com/v1", "gpt-image-2.5-vip",
-        billing="per_image", unit_price_usd=0.03, tier="preferred",
-        qualities=QUALITIES_GPT25, size_policy="table30",
-        note="别名→sunburst-vip；画质/编辑精度优先的默认路线（$0.03/张，尺寸/质量不加价）",
-        cost_hint="$0.03/image flat",
+        tier="default", qualities=QUALITIES_GPT25, size_policy="table30",
+        note="别名→sunburst-vip；画质与编辑精度优先的默认线路",
     ),
     "apiyi_gpt_image_2_5_flare_vip": Preset(
         "apiyi_gpt_image_2_5_flare_vip", "apiyi", "openai_images",
         "https://api.apiyi.com/v1", "gpt-image-2.5-flare-vip",
-        billing="per_image", unit_price_usd=0.03, tier="preferred",
-        qualities=QUALITIES_GPT25, size_policy="table30",
-        note="速度优先的 $0.03 路线；画面偏软，适合草稿/批量试稿",
-        cost_hint="$0.03/image flat",
+        tier="default", qualities=QUALITIES_GPT25, size_policy="table30",
+        note="速度优先的默认线路；画面偏软，适合草稿与批量试稿",
     ),
     "apiyi_gpt_image_2_5_sunburst_vip": Preset(
         "apiyi_gpt_image_2_5_sunburst_vip", "apiyi", "openai_images",
         "https://api.apiyi.com/v1", "gpt-image-2.5-sunburst-vip",
-        billing="per_image", unit_price_usd=0.03, tier="preferred",
-        qualities=QUALITIES_GPT25, size_policy="table30",
+        tier="default", qualities=QUALITIES_GPT25, size_policy="table30",
         note="显式 sunburst-vip 全名；与 gpt-image-2.5-vip 同款",
-        cost_hint="$0.03/image flat",
     ),
     "apiyi_gpt_image_2_vip": Preset(
         "apiyi_gpt_image_2_vip", "apiyi", "openai_images",
         "https://api.apiyi.com/v1", "gpt-image-2-vip",
-        billing="per_image", unit_price_usd=0.03, tier="preferred",
-        qualities=QUALITIES_GPT2, size_policy="table30",
-        note="上一代 VIP，$0.03/张，quality 只到 high（xhigh/max 会被拒）",
-        cost_hint="$0.03/image flat",
+        tier="default", qualities=QUALITIES_GPT2, size_policy="table30",
+        note="上一代 VIP；quality 只到 high（xhigh/max 会被拒）",
     ),
-    # ── GPT-Image 2.5 VIP via laozhang — same $0.03 flat route ──────
+    # ── GPT-Image 2.5 VIP via laozhang ─────────────────────────────
     "laozhang_gpt_image_2_5_flare_vip": Preset(
         "laozhang_gpt_image_2_5_flare_vip", "laozhang", "openai_images",
         "https://api.laozhang.ai/v1", "gpt-image-2.5-flare-vip",
-        billing="per_image", unit_price_usd=0.03, tier="preferred",
-        qualities=QUALITIES_GPT25, size_policy="table30",
-        note="apiyi VIP 不可用时的同价（$0.03/张）备选；饱和时可能 429",
-        cost_hint="$0.03/image flat",
+        tier="default", qualities=QUALITIES_GPT25, size_policy="table30",
+        note="apiyi 不可用时的备选默认线路；上游饱和时可能 429",
     ),
     "laozhang_gpt_image_2_5_sunburst_vip": Preset(
         "laozhang_gpt_image_2_5_sunburst_vip", "laozhang", "openai_images",
         "https://api.laozhang.ai/v1", "gpt-image-2.5-sunburst-vip",
-        billing="per_image", unit_price_usd=0.03, tier="preferred",
-        qualities=QUALITIES_GPT25, size_policy="table30",
-        note="laozhang 画质优先 VIP；同价 $0.03/张，比 flare 慢",
-        cost_hint="$0.03/image flat",
+        tier="default", qualities=QUALITIES_GPT25, size_policy="table30",
+        note="laozhang 画质优先 VIP；比 flare 慢",
     ),
-    # ── EXPENSIVE official relay (token-billed) — last resort only ──
+    # ── Official-relay routes — fallback chain only ────────────────
     "apiyi_gpt_image_2_5_flare": Preset(
         "apiyi_gpt_image_2_5_flare", "apiyi", "openai_images",
         "https://api.apiyi.com/v1", "gpt-image-2.5-flare",
-        billing="per_token", tier="last_resort",
-        qualities=QUALITIES_GPT25,
-        note="官转按 token 计费（贵）；仅在所有 $0.03 路线失败时手动启用",
+        route="official_relay", tier="fallback", qualities=QUALITIES_GPT25,
+        note="官转 2.5 flare；回退线路",
     ),
     "apiyi_gpt_image_2_5_sunburst": Preset(
         "apiyi_gpt_image_2_5_sunburst", "apiyi", "openai_images",
         "https://api.apiyi.com/v1", "gpt-image-2.5-sunburst",
-        billing="per_token", tier="last_resort",
-        qualities=QUALITIES_GPT25,
-        note="官转按 token 计费（贵）；画质兜底，仅最后手段",
+        route="official_relay", tier="fallback", qualities=QUALITIES_GPT25,
+        note="官转 2.5 sunburst；回退线路",
     ),
     "laozhang_gpt_image_2_5_flare": Preset(
         "laozhang_gpt_image_2_5_flare", "laozhang", "openai_images",
         "https://api.laozhang.ai/v1", "gpt-image-2.5-flare",
-        billing="per_token", tier="last_resort",
-        qualities=QUALITIES_GPT25,
-        note="官转按 token 计费（贵）；仅最后手段",
+        route="official_relay", tier="fallback", qualities=QUALITIES_GPT25,
+        note="官转 2.5 flare；回退线路",
     ),
     "laozhang_gpt_image_2_5_sunburst": Preset(
         "laozhang_gpt_image_2_5_sunburst", "laozhang", "openai_images",
         "https://api.laozhang.ai/v1", "gpt-image-2.5-sunburst",
-        billing="per_token", tier="last_resort",
-        qualities=QUALITIES_GPT25,
-        note="官转按 token 计费（贵）；仅最后手段",
+        route="official_relay", tier="fallback", qualities=QUALITIES_GPT25,
+        note="官转 2.5 sunburst；回退线路",
     ),
     # ── Older / other GPT Image 2 presets ──────────────────────────
     "laozhang_gpt_image_2_vip": Preset(
         "laozhang_gpt_image_2_vip", "laozhang", "openai_images",
         "https://api.laozhang.ai/v1", "gpt-image-2-vip",
-        billing="per_image", unit_price_usd=0.03, tier="standard",
-        qualities=QUALITIES_GPT2, size_policy="table30",
-        note="上一代 VIP，$0.03/张；不再作为默认（2.5 画质更好）",
-        cost_hint="$0.03/image flat",
+        tier="standard", qualities=QUALITIES_GPT2, size_policy="table30",
+        note="上一代 VIP；保留给既有配置",
     ),
     "laozhang_gpt_image_2_default": Preset(
         "laozhang_gpt_image_2_default", "laozhang", "openai_images",
         "https://api.laozhang.ai/v1", "gpt-image-2",
-        billing="per_token", tier="last_resort",
-        qualities=QUALITIES_GPT2,
-        note="官转 gpt-image-2，按 token 计费（贵）",
+        route="official_relay", tier="fallback", qualities=QUALITIES_GPT2,
+        note="官转 gpt-image-2；回退线路",
     ),
     "laozhang_gpt_image_2_enterprise": Preset(
         "laozhang_gpt_image_2_enterprise", "laozhang", "openai_images",
         "https://api.laozhang.ai/v1", "gpt-image-2",
-        billing="per_token", tier="last_resort",
-        qualities=QUALITIES_GPT2,
+        route="official_relay", tier="fallback", qualities=QUALITIES_GPT2,
+        note="企业通道官转 gpt-image-2；回退线路",
     ),
     "laozhang_gpt_image_2_sora_official": Preset(
         "laozhang_gpt_image_2_sora_official", "laozhang", "openai_images",
         "https://api.laozhang.ai/v1", "gpt-image-2",
-        billing="per_token", tier="last_resort",
-        qualities=QUALITIES_GPT2,
+        route="official_relay", tier="fallback", qualities=QUALITIES_GPT2,
+        note="Sora 官方通道的 gpt-image-2；回退线路",
     ),
     "openai_gpt_image_2": Preset(
         "openai_gpt_image_2", "openai", "openai_images",
         "https://api.openai.com/v1", "gpt-image-2",
-        billing="per_token", tier="last_resort",
-        qualities=QUALITIES_GPT2,
-        note="官方直连，最贵；仅在需要官方字段行为时使用",
+        route="official", tier="fallback", qualities=QUALITIES_GPT2,
+        note="官方直连；只在需要官方字段行为时使用",
     ),
     "apiyi_gpt_image_2": Preset(
         "apiyi_gpt_image_2", "apiyi", "openai_images",
         "https://api.apiyi.com/v1", "gpt-image-2",
-        billing="per_token", tier="last_resort",
-        qualities=QUALITIES_GPT2,
-        note="官转 gpt-image-2，按 token 计费（贵）",
+        route="official_relay", tier="fallback", qualities=QUALITIES_GPT2,
+        note="官转 gpt-image-2；回退线路",
     ),
     "right_codes_gpt_image_2": Preset(
         "right_codes_gpt_image_2", "right_codes", "openai_images",
         "https://www.right.codes/draw/v1", "gpt-image-2",
-        billing="per_token", tier="standard",
-        qualities=QUALITIES_GPT2,
+        tier="standard", qualities=QUALITIES_GPT2,
     ),
     "right_codes_gpt_image_2_vip": Preset(
         "right_codes_gpt_image_2_vip", "right_codes", "openai_images",
         "https://www.right.codes/draw/v1", "gpt-image-2-vip",
-        stability="experimental",
-        billing="per_image", unit_price_usd=0.03, tier="standard",
+        stability="experimental", tier="standard",
         qualities=QUALITIES_GPT2, size_policy="table30",
-        cost_hint="$0.03/image flat",
     ),
     "right_codes_nano_with_image_api_images": Preset(
         "right_codes_nano_with_image_api_images", "right_codes", "openai_images",
         "https://www.right.codes/draw/v1", "nano-banana-2",
-        billing="per_image", tier="standard",
+        tier="standard",
     ),
     "copperai_gpt_image_2": Preset(
         "copperai_gpt_image_2", "copperai", "openai_images",
         "https://api.copperai.dev/v1", "gpt-image-2",
-        stability="experimental", billing="per_token", tier="standard",
+        stability="experimental", tier="standard",
         qualities=QUALITIES_GPT2,
     ),
     # ── Nano Banana 2 presets (Gemini generateContent protocol) ──
     "laozhang_nano_banana_pro": Preset(
         "laozhang_nano_banana_pro", "laozhang", "gemini_generate_content",
         "https://api.laozhang.ai", "gemini-3-pro-image-preview",
-        env_key_family="banana", billing="per_image", tier="standard",
+        env_key_family="banana", tier="standard",
     ),
     "apiyi_nano_banana_2": Preset(
         "apiyi_nano_banana_2", "apiyi", "gemini_generate_content",
         "https://api.apiyi.com", "gemini-3.1-flash-image-preview",
-        env_key_family="banana", billing="per_image", tier="standard",
+        env_key_family="banana", tier="standard",
     ),
     "google_nano_banana": Preset(
         "google_nano_banana", "google", "gemini_generate_content",
         "https://generativelanguage.googleapis.com", "gemini-3.1-flash-image-preview",
-        env_key_family="banana", billing="per_image", tier="standard",
+        env_key_family="banana", route="official", tier="standard",
     ),
 }
 
 
 # ── Auto-selection chains ───────────────────────────────────────────
 #
-# `--preset auto` (the CLI default) walks CHEAP_CHAIN in order and only
+# `--preset auto` (the CLI default) walks DEFAULT_CHAIN in order and only
 # falls through on transport/quota/saturation errors (403/429/5xx/timeout),
 # never on a 400 parameter rejection.
 #
-# CHEAP_CHAIN: every hop is $0.03/image flat. apiyi first (user preference),
-# then laozhang's identical -vip routes when apiyi's key is out of quota.
+# DEFAULT_CHAIN: the relay sites the skill routes to by default. apiyi first,
+# then laozhang as an equivalent alternative when apiyi's key is out of quota.
 #
-# LAST_RESORT_CHAIN: token-billed official relays. Only appended when the
-# caller passes --allow-expensive, i.e. after every cheap route has failed
+# FALLBACK_CHAIN: official / official-relay routes. Only appended when the
+# caller passes --allow-fallback, i.e. after every default route has failed
 # or the task provably needs a field only the official relay exposes.
 
-CHEAP_CHAIN: tuple[str, ...] = (
+DEFAULT_CHAIN: tuple[str, ...] = (
     "apiyi_gpt_image_2_5_vip",
     "apiyi_gpt_image_2_5_flare_vip",
     "laozhang_gpt_image_2_5_sunburst_vip",
     "laozhang_gpt_image_2_5_flare_vip",
 )
 
-LAST_RESORT_CHAIN: tuple[str, ...] = (
+FALLBACK_CHAIN: tuple[str, ...] = (
     "apiyi_gpt_image_2_5_sunburst",
     "apiyi_gpt_image_2_5_flare",
     "laozhang_gpt_image_2_5_sunburst",
@@ -300,11 +283,12 @@ LAST_RESORT_CHAIN: tuple[str, ...] = (
 
 DEFAULT_PRESET = "apiyi_gpt_image_2_5_vip"
 
-# Human-readable tier explanation reused by CLI output and docs.
+# Human-readable route labels reused by CLI output and docs. Intentionally
+# says nothing about what any gateway charges.
 TIER_LABELS = {
-    "preferred": "$0.03/image flat",
-    "standard": "varies",
-    "last_resort": "EXPENSIVE (token-billed relay)",
+    "default": "default route",
+    "standard": "alternate / experimental",
+    "fallback": "fallback (official / official-relay)",
 }
 
 
@@ -476,11 +460,11 @@ def list_available_presets() -> list[str]:
     return [pid for pid in PRESETS if resolve_preset_api_key(pid)]
 
 
-def build_auto_chain(allow_expensive: bool = False, protocol: str | None = None) -> list[str]:
+def build_auto_chain(allow_fallback: bool = False, protocol: str | None = None) -> list[str]:
     """Return the ordered preset IDs `--preset auto` should try."""
-    chain = list(CHEAP_CHAIN)
-    if allow_expensive:
-        chain += list(LAST_RESORT_CHAIN)
+    chain = list(DEFAULT_CHAIN)
+    if allow_fallback:
+        chain += list(FALLBACK_CHAIN)
     if protocol:
         chain = [pid for pid in chain if PRESETS.get(pid) and PRESETS[pid].protocol == protocol]
     return [pid for pid in chain if resolve_preset_api_key(pid)]

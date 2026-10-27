@@ -2,13 +2,14 @@
 """laozhang_gpt_image_2_5_flare_vip — wrapper for img-gen preset laozhang_gpt_image_2_5_flare_vip.
 
 Model : gpt-image-2.5-flare-vip
-Route : laozhang (openai_images)
-Billing: $0.03/image flat  |  tier: preferred
-Note  : apiyi VIP 不可用时的同价（$0.03/张）备选；饱和时可能 429
+Route : laozhang (openai_images)  route=proxy  tier=default
+Note  : apiyi 不可用时的备选默认线路；上游饱和时可能 429
 
 Usage:
   python3 laozhang_gpt_image_2_5_flare_vip.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 laozhang_gpt_image_2_5_flare_vip.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset laozhang_gpt_image_2_5_flare_vip pre-filled.
 """
 import os
 import sys

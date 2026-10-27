@@ -2,13 +2,13 @@
 """right_codes_gpt_image_2 — wrapper for img-gen preset right_codes_gpt_image_2.
 
 Model : gpt-image-2
-Route : right_codes (openai_images)
-Billing: varies  |  tier: standard
-Note  : stable
+Route : right_codes (openai_images)  route=proxy  tier=standard
 
 Usage:
   python3 right_codes_gpt_image_2.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 right_codes_gpt_image_2.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset right_codes_gpt_image_2 pre-filled.
 """
 import os
 import sys

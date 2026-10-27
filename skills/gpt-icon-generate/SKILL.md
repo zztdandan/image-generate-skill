@@ -73,7 +73,7 @@ IMG_GEN=/absolute/path/to/skills/img-gen/scripts/img_gen.py
 - `cols`：图标板列数，默认 `4`
 - `size`：生成尺寸，默认 `2048x2048`
 - `aspect_ratio`：图片比例，默认 `1:1`
-- `preset`：img-gen 的 preset id，默认 `auto`（$0.03/张的 `-vip` 链路）
+- `preset`：img-gen 的 preset id，默认 `auto`（走 `tier=default` 默认链路）
 - `fuzz`：背景 floodfill 容差，默认 `1.5%`
 - `pad`：组件 bbox 外扩像素，默认由实际图片尺寸计算
 - `border`：透明图标边缘留白，默认由实际图片尺寸计算
@@ -84,7 +84,7 @@ IMG_GEN=/absolute/path/to/skills/img-gen/scripts/img_gen.py
 
 ## 生图命令
 
-默认（最便宜、可自动回退）：
+默认（auto 默认链路，可自动回退）：
 
 ```bash
 python3 "$IMG_GEN" generate \
@@ -99,14 +99,14 @@ python3 "$IMG_GEN" generate \
 - 需要精确像素时用 `--size-px 2048x2048`（必须是 img-gen 30 档尺寸表内的值）。
 - 默认不要加 `--quality`；要提画质时按 img-gen 的 quality 档位说明传，
   注意 `gpt-image-2-vip` 只到 `high`。
-- 默认不要用贵路线：只有所有 `$0.03` 路线都失败，才考虑 `--allow-expensive`，
-  并在交付说明里写明本次走了按 token 计费的官转线路。
+- 默认不要用 `tier=fallback`：只有所有默认线路都失败，才考虑 `--allow-fallback`，
+  并在交付说明里写明本次走了官方 / 官转线路。
 
 ## preset 选择规则
 
-1. 默认 `--preset auto`，只走 `$0.03/张` 的 `-vip` 路线，同价互为备份。
+1. 默认 `--preset auto`，只走 `tier=default` 的中转线路，互为备份。
 2. 用户明确要求 right.codes draw 兼容链路时，显式传 `--preset right_codes_gpt_image_2`；
-   该线路上按次计费的写法是 `right_codes_gpt_image_2_vip`。
+   该线路上 VIP 模型名的写法是 `right_codes_gpt_image_2_vip`。
 3. 只有在探索陌生 OpenAI Images 兼容站点时，才在 img-gen 的
    `scripts/lib/presets.py` 新增 preset（或在调用 `lib/openai_images.py` 时传入自定义
    `base_url` / `model` / `api_key`）；不要把一次性参数写死进本技能。

@@ -2,13 +2,14 @@
 """laozhang_gpt_image_2_sora_official — wrapper for img-gen preset laozhang_gpt_image_2_sora_official.
 
 Model : gpt-image-2
-Route : laozhang (openai_images)
-Billing: EXPENSIVE (token-billed relay)  |  tier: last_resort
-Note  : stable
+Route : laozhang (openai_images)  route=official_relay  tier=fallback
+Note  : Sora 官方通道的 gpt-image-2；回退线路
 
 Usage:
   python3 laozhang_gpt_image_2_sora_official.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 laozhang_gpt_image_2_sora_official.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset laozhang_gpt_image_2_sora_official pre-filled.
 """
 import os
 import sys

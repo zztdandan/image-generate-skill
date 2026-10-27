@@ -12,7 +12,7 @@
     {
       "name": "image-generate-skill",
       "source": "./",
-      "description": "Generate and edit images (GPT-Image 2.5 / Nano Banana 2) and turn icon sheets into transparent PNG icon packs — stdlib Python only, no MCP server.",
+      "description": "Generate and edit images by forwarding requests to OpenAI-Images / Gemini compatible relay sites, and turn icon sheets into transparent PNG icon packs — stdlib Python only, no MCP server.",
       "version": "2.3.0",
       "author": {
         "name": "zztdandan",
@@ -30,5 +30,6 @@
         "transparent-png"
       ]
     }
-  ]
+  ],
+  "description": "Two standalone agent skills for image generation: img-gen (forwards requests to OpenAI-Images / Gemini compatible relay sites, 23 presets, ordered default chain) and gpt-icon-generate (icon sheet to transparent PNG pipeline). No MCP server, no SDK."
 }

@@ -2,13 +2,14 @@
 """laozhang_gpt_image_2_vip — wrapper for img-gen preset laozhang_gpt_image_2_vip.
 
 Model : gpt-image-2-vip
-Route : laozhang (openai_images)
-Billing: $0.03/image flat  |  tier: standard
-Note  : 上一代 VIP，$0.03/张；不再作为默认（2.5 画质更好）
+Route : laozhang (openai_images)  route=proxy  tier=standard
+Note  : 上一代 VIP；保留给既有配置
 
 Usage:
   python3 laozhang_gpt_image_2_vip.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 laozhang_gpt_image_2_vip.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset laozhang_gpt_image_2_vip pre-filled.
 """
 import os
 import sys

@@ -2,13 +2,14 @@
 """laozhang_gpt_image_2_5_sunburst_vip — wrapper for img-gen preset laozhang_gpt_image_2_5_sunburst_vip.
 
 Model : gpt-image-2.5-sunburst-vip
-Route : laozhang (openai_images)
-Billing: $0.03/image flat  |  tier: preferred
-Note  : laozhang 画质优先 VIP；同价 $0.03/张，比 flare 慢
+Route : laozhang (openai_images)  route=proxy  tier=default
+Note  : laozhang 画质优先 VIP；比 flare 慢
 
 Usage:
   python3 laozhang_gpt_image_2_5_sunburst_vip.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 laozhang_gpt_image_2_5_sunburst_vip.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset laozhang_gpt_image_2_5_sunburst_vip pre-filled.
 """
 import os
 import sys

@@ -1,6 +1,6 @@
 ---
 name: img-gen
-description: "Generate or edit images with GPT-Image 2.5 (default $0.03/image flat VIP routes) and Nano Banana 2 via direct HTTP API calls. No MCP server, no SDK — stdlib only."
+description: "Generate or edit images by forwarding requests to OpenAI-Images / Gemini compatible relay sites (GPT-Image 2.5, Nano Banana 2). 23 presets, 30 exact pixel slots, ordered default chain. No MCP server, no SDK — stdlib only."
 version: 2.3.0
 license: MIT
 platforms: [linux, macos, windows]
@@ -56,22 +56,28 @@ python3 scripts/check_env.py        # 或 python3 scripts/img_gen.py check
 - 只有 nano-banana 的 key 时，`generate` 仍可跑 Gemini 协议 preset（`--preset` 显式指定，
   或 auto 链里只剩 banana 路线）。
 
-## 计费模型与默认路线
+## 线路模型与默认链路
 
-| 路线 | 模型名 | 计费 | 定位 |
-|------|--------|------|------|
-| **便宜路线** | `gpt-image-2.5-vip`（别名 sunburst-vip）、`-flare-vip`、`-sunburst-vip`、`gpt-image-2-vip` | **$0.03/张，按次**；1K/2K/4K 与 quality 都不加价 | 日常唯一默认 |
-| 贵路线 | `gpt-image-2.5-flare` / `-sunburst`、`gpt-image-2`（无 `-vip`） | 官转，按输出 token 计费，明显更贵 | 最后手段 |
+本技能只负责**把请求转发到某个中转生图站**；各站怎么算账由你自己的网关账号决定，
+技能不描述、也不承诺任何计费信息。
+
+| 维度 | 取值 | 含义 |
+|------|------|------|
+| `route` | `proxy` | 中转站 / 聚合站（大多数 preset） |
+| | `official_relay` | 官转通道（把请求转给官方 API） |
+| | `official` | 官方 API 直连 |
+| `tier` | `default` | 日常默认线路，`--preset auto` 按顺序走 |
+| | `standard` | 备用 / 实验线路，只有显式点名才用 |
+| | `fallback` | 官方 / 官转线路，需 `--allow-fallback` 或显式点名 |
 
 规则：
 
-1. **默认用 `--preset auto`**（不写 `--preset` 即是 auto）。auto 只走 $0.03/张 的
-   `-vip` 路线，顺序为 apiyi → laozhang，同价互为备份。
-2. **不要主动用贵路线。** 贵路线 preset 标记为 `tier=last_resort`，只有两种入口：
-   显式写 preset 名，或 auto 加 `--allow-expensive`。CLI 命中时会打印
-   `[!] LAST-RESORT ROUTE` 警告。
-3. 只有当所有 $0.03 路线都失败（配额不足、分组饱和、5xx、超时）时才考虑
-   `--allow-expensive`；用了必须在交付说明里写明「本次走了按 token 计费的官转路线」。
+1. **默认用 `--preset auto`**（不写 `--preset` 即是 auto）。auto 只走 `tier=default`
+   链路，顺序为 apiyi → laozhang，互为备份。
+2. **不要主动用 `tier=fallback`。** 它们只有两种入口：显式写 preset 名，或 auto 加
+   `--allow-fallback`。CLI 命中时会打印 `[!] FALLBACK ROUTE` 警告。
+3. 只有当所有默认线路都失败（配额不足、分组饱和、5xx、超时）时才考虑
+   `--allow-fallback`；用了必须在交付说明里写明「本次走了官方 / 官转线路」。
 4. 参数写错（HTTP 400）**不换路线重试**——所有路线都会同样失败，直接改参数。
 
 ### 当前实测状态（2026-10-26）
@@ -79,13 +85,12 @@ python3 scripts/check_env.py        # 或 python3 scripts/img_gen.py check
 - apiyi `apiyi_gpt_image_2_5_vip`（`gpt-image-2.5-vip`）实测可用：
   1280×720 + low 生成 29.9 s，2048×1152 + low 编辑 29.8 s，1280×1280 + url 响应
   39.6 s，返回尺寸与请求逐像素一致。
-- 同一 key 当天早些时候曾报 `403 配额不足 / insufficient_quota`，随后恢复——说明该错误
-  是账号配额波动。**auto 链遇到 403 会自动落到下一条同价路线，无需改配置。**
-- laozhang 网关在 02:11 可用（27 s 出图），02:20 起对本机 TLS 直接断连
-  （`SSL: UNEXPECTED_EOF_WHILE_READING`，openssl 握手同样被 reset）。这是 laozhang 侧
-  的可用性问题，不是技能代码问题；laozhang 的 `-vip` preset 仍保留为同价备份。
-- 环境变量 `IMG_GEN_GPT_IMAGE_2_OFFICIAL_PRESET` 现为 `apiyi_gpt_image_2_5_vip`
-  （$0.03/张）。
+- 同一 key 曾报 `403 配额不足 / insufficient_quota`，随后恢复——这是账号配额波动。
+  **auto 链遇到 403 会自动落到下一条默认线路，无需改配置。**
+- laozhang 网关某一时段曾对本机 TLS 直接断连
+  （`SSL: UNEXPECTED_EOF_WHILE_READING`，openssl 握手同样被 reset）。这是该站侧的
+  可用性问题，不是技能代码问题；laozhang 的 `-vip` preset 仍保留为默认链路的备份。
+- 环境变量 `IMG_GEN_GPT_IMAGE_2_OFFICIAL_PRESET` 现为 `apiyi_gpt_image_2_5_vip`。
 
 ## 技能文件
 
@@ -96,7 +101,7 @@ scripts/
 ├── img_gen.py              ← 统一 CLI（check / generate / edit），--preset auto 链路
 ├── check_env.py            ← 环境变量检测（缺变量时给出具体设置指引）
 ├── lib/
-│   ├── presets.py          ← preset 目录 + tier/计费/quality/size 校验 + auto 链
+│   ├── presets.py          ← preset 目录 + route/tier/quality/size 校验 + 链路
 │   ├── openai_images.py    ← OpenAI Images 协议（360 s 超时、url/b64 双兜底）
 │   └── gemini_gen.py       ← Gemini generateContent 协议
 └── presets/
@@ -115,12 +120,12 @@ python3 scripts/check_env.py          # 或 python3 scripts/img_gen.py check
 ```
 
 从进程环境变量读取配置，确认 key 存在，并打印 auto 链路顺序、每个 preset 的 tier
-与单价。不打印 token 值。缺变量时按「配置门禁」停下并让用户补齐。
+与 route 类型。不打印 token 值。缺变量时按「配置门禁」停下并让用户补齐。
 
-### Step 2 — 生成图片（默认便宜路线）
+### Step 2 — 生成图片（默认链路）
 
 ```bash
-# auto：依次尝试 apiyi → laozhang 的 $0.03/张 -vip 路线
+# auto：依次尝试 apiyi → laozhang 的默认线路
 python3 scripts/img_gen.py generate \
     --prompt "A futuristic steel plant" \
     --save output.png --size 2K --ratio 16:9
@@ -154,9 +159,9 @@ python3 scripts/img_gen.py edit \
 >
 > **输入图体积**：单张 >1.5 MB 时 CLI 打印警告。大图容易触发 `shell_api_error` / 超时；输出画质由 `size` 决定，压小输入不会降画质。
 >
-> **mask 不精确**：三款 -vip 接受 `mask` 但基本整图重绘；需要精确局部重绘只能换官转 `gpt-image-2.5/2`（更贵），不属于本技能默认范围。
+> **mask 不精确**：三款 -vip 接受 `mask` 但基本整图重绘；需要精确局部重绘只能换官转 `gpt-image-2.5/2`，不属于本技能默认范围。
 >
-> **超时**：默认 360 s（`--timeout` 可调）。图片接口是同步调用，没有任务 ID，客户端断开结果即丢但照常计费——不要为了「快点失败」把超时调低。
+> **超时**：默认 360 s（`--timeout` 可调）。图片接口是同步调用，没有任务 ID，客户端断开结果即丢——不要为了「快点失败」把超时调低。
 
 ## 尺寸
 
@@ -174,15 +179,15 @@ python3 scripts/img_gen.py edit \
 - 档位对齐：2.5 的 `high` ≈ 2-vip 的 `medium`，2.5 的 `max` ≈ 2-vip 的 `high`。
 - 不写 `--quality` 就不发该字段，让上游用默认；不要传空字符串。
 
-## 响应格式、重试与花费
+## 响应格式与重试
 
 - `response_format` **总是显式发送**，默认 `b64_json`；`--response-format url` 时 CLI
   立即下载并落盘（CDN 链接约 24 h 失效）。
 - `b64_json` 兼容带 `data:` 前缀与不带两种历史行为。
-- `n` 永远是 1：传 `n=3` 会按 3 张扣费但仍只返回 1 张。
+- `n` 永远是 1：传 `n=3` 也只返回 1 张，多传无意义。
 - 5xx 与「上游负载已饱和」的 429 自动重试 1 次；`403 insufficient_quota` 不重试，
-  直接在 auto 链里换下一条同价路线。
-- 每张图独立计费：1K 和 4K 都是 $0.03，所以调试用 1K，别用大图试错。
+  直接在 auto 链里换下一条默认线路。
+- 调试用 1K：出图更快，失败重试时等待更少。
 
 ## Preset 脚本
 
@@ -226,9 +231,9 @@ export IMAGE_OUTPUT_DIR=<绝对路径>      # 可选，默认 ~/images
 
 | tier | 含义 | 代表 preset |
 |------|------|-------------|
-| `preferred` | $0.03/张按次，日常默认 | `apiyi_gpt_image_2_5_vip`、`laozhang_gpt_image_2_5_sunburst_vip`、`..._flare_vip` |
-| `standard` | 其它厂商/实验线路 | `laozhang_gpt_image_2_vip`、`right_codes_*`、`copperai_*`、banana 系列 |
-| `last_resort` | 官转按 token，**贵**，仅最后手段 | `apiyi_gpt_image_2_5_flare`、`laozhang_gpt_image_2_5_sunburst`、`laozhang_gpt_image_2_default` 等 |
+| `default` | 日常默认链路，auto 按顺序走 | `apiyi_gpt_image_2_5_vip`、`laozhang_gpt_image_2_5_sunburst_vip`、`..._flare_vip` |
+| `standard` | 其它中转站 / 实验线路，需显式点名 | `laozhang_gpt_image_2_vip`、`right_codes_*`、`copperai_*`、banana 系列 |
+| `fallback` | 官方 / 官转线路，仅 `--allow-fallback` 或显式点名 | `apiyi_gpt_image_2_5_flare`、`laozhang_gpt_image_2_5_sunburst`、`laozhang_gpt_image_2_default` 等 |
 
 ## Per-preset 覆盖（多厂商 key / base_url）
 
@@ -250,7 +255,7 @@ IMG_GEN_PRESET_<PRESET_ID_UPPER>_BASE_URL=<url>
 | 想做的事 | 命令 |
 |---------|------|
 | 看一眼当前配置与链路 | `python3 scripts/img_gen.py check` |
-| 文生图（默认最便宜） | `python3 scripts/img_gen.py generate --prompt "..." --save out.png` |
+| 文生图（默认链路） | `python3 scripts/img_gen.py generate --prompt "..." --save out.png` |
 | 改图 | `python3 scripts/img_gen.py edit --image in.png --prompt "..." --save out.png --size 2048x1152` |
 | 走 Nano Banana | `python3 scripts/img_gen.py generate --preset laozhang_nano_banana_pro --prompt "..." --save out.png` |
 | 单线路调试 | `python3 scripts/presets/gpt/apiyi_gpt_image_2_5_vip.py generate --prompt "..." --save out.png` |

@@ -2,13 +2,14 @@
 """apiyi_gpt_image_2_vip — wrapper for img-gen preset apiyi_gpt_image_2_vip.
 
 Model : gpt-image-2-vip
-Route : apiyi (openai_images)
-Billing: $0.03/image flat  |  tier: preferred
-Note  : 上一代 VIP，$0.03/张，quality 只到 high（xhigh/max 会被拒）
+Route : apiyi (openai_images)  route=proxy  tier=default
+Note  : 上一代 VIP；quality 只到 high（xhigh/max 会被拒）
 
 Usage:
   python3 apiyi_gpt_image_2_vip.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 apiyi_gpt_image_2_vip.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset apiyi_gpt_image_2_vip pre-filled.
 """
 import os
 import sys

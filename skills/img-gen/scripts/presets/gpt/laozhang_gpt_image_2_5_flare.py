@@ -2,13 +2,14 @@
 """laozhang_gpt_image_2_5_flare — wrapper for img-gen preset laozhang_gpt_image_2_5_flare.
 
 Model : gpt-image-2.5-flare
-Route : laozhang (openai_images)
-Billing: EXPENSIVE (token-billed relay)  |  tier: last_resort
-Note  : 官转按 token 计费（贵）；仅最后手段
+Route : laozhang (openai_images)  route=official_relay  tier=fallback
+Note  : 官转 2.5 flare；回退线路
 
 Usage:
   python3 laozhang_gpt_image_2_5_flare.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 laozhang_gpt_image_2_5_flare.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset laozhang_gpt_image_2_5_flare pre-filled.
 """
 import os
 import sys

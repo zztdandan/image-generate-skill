@@ -2,13 +2,14 @@
 """apiyi_gpt_image_2_5_vip — wrapper for img-gen preset apiyi_gpt_image_2_5_vip.
 
 Model : gpt-image-2.5-vip
-Route : apiyi (openai_images)
-Billing: $0.03/image flat  |  tier: preferred
-Note  : 别名→sunburst-vip；画质/编辑精度优先的默认路线（$0.03/张，尺寸/质量不加价）
+Route : apiyi (openai_images)  route=proxy  tier=default
+Note  : 别名→sunburst-vip；画质与编辑精度优先的默认线路
 
 Usage:
   python3 apiyi_gpt_image_2_5_vip.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 apiyi_gpt_image_2_5_vip.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset apiyi_gpt_image_2_5_vip pre-filled.
 """
 import os
 import sys

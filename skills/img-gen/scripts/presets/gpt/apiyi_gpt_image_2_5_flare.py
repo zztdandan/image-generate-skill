@@ -2,13 +2,14 @@
 """apiyi_gpt_image_2_5_flare — wrapper for img-gen preset apiyi_gpt_image_2_5_flare.
 
 Model : gpt-image-2.5-flare
-Route : apiyi (openai_images)
-Billing: EXPENSIVE (token-billed relay)  |  tier: last_resort
-Note  : 官转按 token 计费（贵）；仅在所有 $0.03 路线失败时手动启用
+Route : apiyi (openai_images)  route=official_relay  tier=fallback
+Note  : 官转 2.5 flare；回退线路
 
 Usage:
   python3 apiyi_gpt_image_2_5_flare.py generate --prompt "..." --save out.png --size 2K --ratio 16:9
   python3 apiyi_gpt_image_2_5_flare.py edit --image in.png --prompt "..." --save out.png --size 2048x1152
+
+Delegates to ../../img_gen.py with --preset apiyi_gpt_image_2_5_flare pre-filled.
 """
 import os
 import sys
